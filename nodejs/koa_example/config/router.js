@@ -5,10 +5,10 @@ module.exports = function(){
 
   router
     .get('/', function* (){
-      this.body = 'hello world';
+      yield this.render('top/index')
     })
-    .get('/evening', function* (){
-      this.body = 'good evening';
+    .get('/board', function* (){
+      yield this.render('board/index');
     });
 
   return router.routes();

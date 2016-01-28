@@ -3,6 +3,8 @@
 const koa = require('koa');
 const app = koa();
 
-app.use(require('./config/router')());
+require('./libs/render')(app);
+
+app.use(require('./config/router')(app));
 
 app.listen(3000);
