@@ -1,0 +1,130 @@
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <title>サクラセッタ</title>
+  <meta name="description" content="適当に画像を乗っけるぜ" />
+
+  <link rel="stylesheet" href="/assets/css/main.css">
+
+  <script src='http://cdnjs.cloudflare.com/ajax/libs/jade/1.11.0/jade.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/riot/2.3.13/riot+compiler.js'></script>
+
+  <script src="http://cdn.rawgit.com/phi-jp/phina.js/v0.1.1/build/phina.js"></script>
+  <script>${script}</script>
+</head>
+<body>
+<app></app>
+<script type="riot/tag" template='jade'>
+app
+  h1 サクラセッタ
+  p
+    | 画面に画像をD&Dしてみる
+
+  div.container
+    div.actions
+      button(onclick='{output}') サクラを追加してみる
+    div.images
+      div(each='{images}')
+        img(src='{src}')
+
+  script.
+    let self = this;
+    this.images = [];
+    let tachie = new Tachie();
+
+    // 別タブで出力する
+    this.output = function() {
+      let canvas = Canvas();
+      let image = this.images.shift();
+      let ctx = canvas.canvas.getContext("2d");
+
+      let width = image.width;
+      let height = image.height;
+      let totalWidth = image.width;
+      let positions = []
+      positions.push([0, 0, 75]);//x, y, 大きさ
+      canvas.setSize(totalWidth, height);
+
+      let offset = 0;
+      let x = 0;
+      let y = 0;
+      ctx.drawImage(image, x, y);
+      offset += width;
+
+      // 顔認識する
+      let comp = ccv.detect_objects({
+        "canvas": ccv.grayscale(ccv.pre(image)),
+        "cascade" : cascade,
+        "interval" : 5,
+        "min_neighbors" : 1,
+      });
+      let scale = 1;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(230,87,0,0.8)';
+      /* draw detected area */
+      for (let i = 0; i < comp.length; i++) {
+        ctx.beginPath();
+        ctx.arc((comp[i].x + comp[i].width * 0.5) * scale, (comp[i].y + comp[i].height * 0.5) * scale,
+          (comp[i].width + comp[i].height) * 0.25 * scale * 1.2, 0, Math.PI * 2);
+        ctx.stroke();
+        // 位置情報を加える
+        positions.push([comp[i].x, comp[i].y, comp[i].width]);
+      }
+
+      positions.sort((a, b) => {
+        return a[0] - b[0];
+      });
+
+      positions.push([width, 0, 75]);//終点
+
+      // 画像の埋め込み
+      let sakura = tachie.getList(positions);
+      sakura.forEach(man => {
+        obj = tachie.imgSet(man);
+        ctx.drawImage(obj.img, obj.offset.x, obj.offset.y);
+      });
+
+      canvas.saveAsImage();
+    };
+
+    let cancelEvent = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+    document.addEventListener("dragover", cancelEvent, false);
+    document.addEventListener("dragenter", cancelEvent, false);
+    document.addEventListener("drop", function(e) {
+      e.preventDefault();
+
+      let files = Array.prototype.slice.call(e.dataTransfer.files);
+
+      files.forEach(function(file) {
+        let image = new Image();
+        image.onload = function() {
+          self.images = [];
+          self.images.push(this);
+          self.update();
+        };
+
+        let reader = new FileReader();
+        reader.onload = function(evt) {
+          image.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }, false);
+</script>
+<script src='/assets/js/tachie.js'></script>
+<script src='/assets/js/ccv.js'></script>
+<script src='/assets/js/face.js'></script>
+<script>
+phina.globalize();
+
+let tags = riot.mount('*');
+</script>
+</body>
+</html>
